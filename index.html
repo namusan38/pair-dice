@@ -37,6 +37,10 @@ h1{font-family:var(--f-display);font-weight:500;font-size:26px;margin:0;letter-s
 .hdr-r{display:flex;align-items:center;gap:10px}
 .snd{font:inherit;font-size:16px;line-height:1;width:34px;height:34px;border-radius:50%;border:1px solid var(--grid);background:var(--paper);cursor:pointer;display:grid;place-items:center}
 .snd[aria-pressed="false"]{opacity:.5}
+.restart-row{display:flex;justify-content:center}
+.restart{font:inherit;font-size:13px;background:none;border:none;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:4px 8px;border-radius:6px}
+.restart.confirm{color:var(--accent);font-weight:700;text-decoration:none;border:1.5px solid var(--accent)}
+.restart:focus-visible{outline:3px solid var(--sel);outline-offset:2px}
 .snd:focus-visible{outline:3px solid var(--sel);outline-offset:2px}
 .tray{background:var(--paper);border:1px solid var(--grid);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
 .dice{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
@@ -134,6 +138,7 @@ tr.hl td{background:color-mix(in srgb,var(--sel) 12%,transparent)}
       <button class="main" id="roll">サイコロを振る</button>
       <button class="sub" id="reroll" disabled>振り直し(残り2)</button>
     </div>
+    <div class="restart-row"><button type="button" class="restart" id="restart">最初からやり直す</button></div>
   </section>
 
   <section class="trash" aria-label="捨てサイコロ">
@@ -375,6 +380,17 @@ function load(){try{const s=JSON.parse(localStorage.getItem('pairdice_state'));i
 
 $('roll').onclick=roll;
 $('reroll').onclick=reroll;
+let rsTimer=null;
+function resetRestart(){const b=$('restart');b.classList.remove('confirm');b.textContent='最初からやり直す';clearTimeout(rsTimer);rsTimer=null}
+$('restart').onclick=()=>{
+  const b=$('restart');
+  if(S.turn===0&&S.phase==='roll')return;
+  if(!rsTimer){
+    b.classList.add('confirm');b.textContent='本当にやり直す？(もう一度タップ)';
+    rsTimer=setTimeout(resetRestart,3000);SFX.play('pick');return;
+  }
+  resetRestart();S=fresh();save();hl([]);render();SFX.play('roll');
+};
 $('again').onclick=()=>{S=fresh();$('over').hidden=true;save();render()};
 
 function start(data){
