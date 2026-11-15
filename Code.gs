@@ -9,7 +9,7 @@
 const TOP_N = 20;          // ランキングに表示する件数
 const MAX_NAME = 12;       // 名前の最大文字数
 const MIN_SCORE = -2200;   // 理論上の最低点
-const MAX_SCORE = 3350;    // 理論上の最高点
+const MAX_SCORE = 4020;    // 理論上の最高点
 
 function doGet(e) {
   const p = (e && e.parameter) || {};

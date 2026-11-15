@@ -78,9 +78,11 @@ tr:last-child td{border-bottom:none}
 td.n{font-family:var(--f-num);font-weight:700;width:30px;text-align:center;font-size:15px}
 td.v{font-family:var(--f-num);font-size:11px;color:var(--muted);width:34px;text-align:right;padding-right:8px}
 td.boxes{white-space:nowrap}
-.bx{display:inline-block;width:19px;height:19px;border:1.5px solid var(--grid);margin-right:2px;vertical-align:middle;position:relative;border-radius:3px}
-.bx.k5{border-color:var(--muted)}
-.bx.x::after{content:"✓";position:absolute;inset:-3px 0 0 1px;color:var(--ink);font-size:16px;font-weight:700;line-height:19px}
+.bx{display:inline-block;width:17px;height:17px;border:1.5px solid var(--grid);margin-right:2px;vertical-align:middle;position:relative;border-radius:3px}
+.bx.mz{background:color-mix(in srgb,var(--bad) 14%,transparent);border-color:color-mix(in srgb,var(--bad) 45%,var(--grid))}
+.bx.mzl{margin-right:7px}
+.bx.pz{border-color:color-mix(in srgb,var(--good) 45%,var(--grid))}
+.bx.x::after{content:"✓";position:absolute;inset:-3px 0 0 0;color:var(--ink);font-size:15px;font-weight:700;line-height:17px}
 .bx.new::after{color:var(--accent)}
 td.s{font-family:var(--f-num);font-weight:700;text-align:right;width:52px;font-size:14px}
 tr.hl td{background:color-mix(in srgb,var(--sel) 12%,transparent)}
@@ -165,7 +167,7 @@ tr.hl td{background:color-mix(in srgb,var(--sel) 12%,transparent)}
       <li>残り4個の組み合わせ方(3通り)から1つ選ぶと、2つのペアの合計にチェックが入ります。</li>
       <li>捨てサイコロの目は3種類まで。3種類決まった後は、その目しか捨てられません(該当する目がない時は自由に捨てられ、記録もしません)。</li>
       <li>どれかの捨て目が8個たまったらゲーム終了。</li>
-      <li>得点:チェック0個=0点、1〜4個=−200点、5個=0点、6個目からは1個ごとに左の点数(10個まで)。</li>
+      <li>各数字のマスは「マイナス」と「プラス(6個)」に分かれています。マイナスのマスは 2・3・11・12 が3個、4・5・9・10 が4個、6・7・8 が5個。</li><li>得点:チェック0個=0点。マイナスのマスにチェックがある間は−200点。プラスのマスに入ると、1個ごとに左の点数が入ります(6個まで)。</li>
       <li>独自ルール:1ゲームに2回だけ、捨てる前なら5個まとめて振り直せます。</li>
     </ul>
   </details>
@@ -199,8 +201,10 @@ function fresh(){
   return {submitted:false,dice:[0,0,0,0,0],phase:'roll',discard:null,marks,trash:[],rerolls:2,turn:0,lastNew:[],over:false};
 }
 const $=id=>document.getElementById(id);
-function rowScore(m){m=Math.min(m,10);if(m===0)return 0;if(m<=4)return -200;if(m===5)return 0;return null}
-function score(marks){let t=0;for(let i=2;i<=12;i++){const m=Math.min(marks[i],10);t+= m===0?0: m<=4?-200: (m-5)*VAL[i]}return t}
+const MINUS={2:3,3:3,4:4,5:4,6:5,7:5,8:5,9:4,10:4,11:3,12:3};
+const PLUS=6;
+function rowScore(n,m){const neg=MINUS[n];m=Math.min(m,neg+PLUS);if(m===0)return 0;if(m<=neg)return -200;return (m-neg)*VAL[n]}
+function score(marks){let t=0;for(let i=2;i<=12;i++)t+=rowScore(i,marks[i]);return t}
 function rand(){return 1+Math.floor(Math.random()*6)}
 
 function legalDiscards(){
@@ -284,11 +288,13 @@ function renderSheet(){
   for(let n=2;n<=12;n++){
     const m=S.marks[n];const tr=document.createElement('tr');tr.dataset.n=n;
     let boxes='';const newCount=S.lastNew.filter(x=>x===n).length;
-    for(let k=0;k<10;k++){
-      const isX=k<Math.min(m,10);const isNew=isX&&k>=Math.min(m,10)-newCount;
-      boxes+=`<span class="bx ${k===4?'k5':''} ${isX?'x':''} ${isNew?'new':''}"></span>`;
+    const neg=MINUS[n],tot=neg+PLUS,mm=Math.min(m,tot);
+    for(let k=0;k<tot;k++){
+      const isX=k<mm;const isNew=isX&&k>=mm-newCount;
+      const zone=k<neg?('mz'+(k===neg-1?' mzl':'')):'pz';
+      boxes+=`<span class="bx ${zone} ${isX?'x':''} ${isNew?'new':''}"></span>`;
     }
-    const mm=Math.min(m,10);const sc=mm===0?0:mm<=4?-200:(mm-5)*VAL[n];
+    const sc=rowScore(n,m);
     tr.innerHTML=`<td class="n">${n}</td><td class="v">${VAL[n]}</td><td class="boxes">${boxes}</td><td class="s ${sc>0?'pos':sc<0?'neg':'zero'}">${sc}</td>`;
     tb.appendChild(tr);
   }
