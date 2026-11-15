@@ -81,6 +81,7 @@ td.boxes{white-space:nowrap}
 .bx{display:inline-block;width:17px;height:17px;border:1.5px solid var(--grid);margin-right:2px;vertical-align:middle;position:relative;border-radius:3px}
 .bx.mz{background:color-mix(in srgb,var(--bad) 14%,transparent);border-color:color-mix(in srgb,var(--bad) 45%,var(--grid))}
 .bx.mzl{margin-right:7px}
+.bx.sp{visibility:hidden}
 .bx.pz{border-color:color-mix(in srgb,var(--good) 45%,var(--grid))}
 .bx.x::after{content:"✓";position:absolute;inset:-3px 0 0 0;color:var(--ink);font-size:15px;font-weight:700;line-height:17px}
 .bx.new::after{color:var(--accent)}
@@ -289,6 +290,8 @@ function renderSheet(){
     const m=S.marks[n];const tr=document.createElement('tr');tr.dataset.n=n;
     let boxes='';const newCount=S.lastNew.filter(x=>x===n).length;
     const neg=MINUS[n],tot=neg+PLUS,mm=Math.min(m,tot);
+    const maxNeg=Math.max(...Object.values(MINUS));
+    for(let k=neg;k<maxNeg;k++)boxes+='<span class="bx sp" aria-hidden="true"></span>';
     for(let k=0;k<tot;k++){
       const isX=k<mm;const isNew=isX&&k>=mm-newCount;
       const zone=k<neg?('mz'+(k===neg-1?' mzl':'')):'pz';
