@@ -24,13 +24,16 @@
 
 - 独自ルール:1ゲームに2回だけ、捨てる前なら5個まとめて振り直せます。
 
+効果音つき。右上のスピーカーボタンでオン/オフを切り替えられます(設定は端末に保存)。
+
 ベースはシド・サクソンの「ソリティア・ダイス」です。
 
 ## ファイル構成
 
 | ファイル | 内容 |
 |---|---|
-| `index.html` | ゲーム本体(これ1つで動きます) |
+| `index.html` | ゲーム本体 |
+| `config.js` | 設定ファイル(ランキング用URLを書く場所) |
 | `Code.gs` | ランキング用の Google Apps Script |
 | `README.md` | このファイル |
 
@@ -50,18 +53,20 @@
 
 ### 2. URLをゲームに設定する
 
-`index.html` の次の行に、コピーしたURLを貼り付けます。
+`config.js` の次の行に、コピーしたURLを貼り付けます。
 
 ```js
-const RANKING_URL = 'https://script.google.com/macros/s/xxxxxxxx/exec';
+  RANKING_URL: 'https://script.google.com/macros/s/xxxxxxxx/exec'
 ```
+
+URLを `config.js` に分けてあるので、今後 `index.html` を新しい版に差し替えてもURLを貼り直す必要はありません。
 
 空のままだとランキングは「準備中」と表示され、ゲームだけ遊べます。
 
 ### 3. GitHub Pages で公開する
 
 1. GitHubで新しいリポジトリ(例:`pair-dice`)を **Public** で作ります。
-2. `index.html` と `README.md` をアップロードします(`Code.gs` は置いても置かなくても構いません)。
+2. `index.html`・`config.js`・`README.md` をアップロードします(`Code.gs` は置いても置かなくても構いません)。
 3. リポジトリの **Settings → Pages** で、Source を **Deploy from a branch**、Branch を `main` / `/ (root)` にして保存します。
 4. 1〜2分後、`https://ユーザー名.github.io/pair-dice/` で遊べるようになります。
 

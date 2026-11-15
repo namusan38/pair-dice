@@ -34,6 +34,10 @@ header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
 h1{font-family:var(--f-display);font-weight:500;font-size:26px;margin:0;letter-spacing:.02em}
 .best{font-size:13px;color:var(--muted)}
 .best b{font-family:var(--f-num);color:var(--ink)}
+.hdr-r{display:flex;align-items:center;gap:10px}
+.snd{font:inherit;font-size:16px;line-height:1;width:34px;height:34px;border-radius:50%;border:1px solid var(--grid);background:var(--paper);cursor:pointer;display:grid;place-items:center}
+.snd[aria-pressed="false"]{opacity:.5}
+.snd:focus-visible{outline:3px solid var(--sel);outline-offset:2px}
 .tray{background:var(--paper);border:1px solid var(--grid);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
 .dice{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
 .die{width:54px;height:54px;border-radius:11px;background:var(--die);border:2px solid var(--die-edge);
@@ -116,7 +120,10 @@ tr.hl td{background:color-mix(in srgb,var(--sel) 12%,transparent)}
 <div class="wrap">
   <header>
     <h1>ペア・ダイス</h1>
-    <div class="best">ベスト <b id="best">—</b> ・ 手番 <b id="turn">0</b></div>
+    <div class="hdr-r">
+      <div class="best">ベスト <b id="best">—</b> ・ 手番 <b id="turn">0</b></div>
+      <button type="button" class="snd" id="snd" aria-pressed="true" aria-label="効果音">🔊</button>
+    </div>
   </header>
 
   <section class="tray" aria-label="サイコロ">
@@ -173,9 +180,10 @@ tr.hl td{background:color-mix(in srgb,var(--sel) 12%,transparent)}
   </div>
 </div>
 
+<script src="config.js"></script>
 <script>
-// ▼ Google Apps Script のウェブアプリURLをここに貼り付け(README参照)
-const RANKING_URL = '';
+// ランキングURLは config.js に書きます(README参照)
+const RANKING_URL = (window.PAIRDICE_CONFIG && window.PAIRDICE_CONFIG.RANKING_URL) || '';
 </script>
 <script>
 const VAL={2:100,3:70,4:60,5:50,6:40,7:30,8:40,9:50,10:60,11:70,12:100};
@@ -220,7 +228,7 @@ function renderDice(rolling){
     for(let k=0;k<9;k++){const p=document.createElement('span');p.className='p';if(d&&PIPS[d].includes(k))p.style.visibility='visible';el.appendChild(p)}
     el.onclick=()=>{
       if(S.phase!=='choose'||!legal.includes(i))return;
-      S.discard=i;render();
+      S.discard=i;SFX.play('pick');render();
     };
     box.appendChild(el);
   });
@@ -282,16 +290,64 @@ function renderSheet(){
   $('total').textContent=score(S.marks);
 }
 
+// ---- 効果音(Web Audioで合成。音声ファイル不要) ----
+const SFX=(()=>{
+  let ctx=null,on=true;
+  try{on=localStorage.getItem('pairdice_sound')!=='off'}catch(e){}
+  function ac(){
+    if(!ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;ctx=new C()}
+    if(ctx.state==='suspended')ctx.resume();
+    return ctx;
+  }
+  function tone(f,t0,dur,{type='sine',vol=.18,to=null}={}){
+    const c=ac();if(!c)return;
+    const o=c.createOscillator(),g=c.createGain(),t=c.currentTime+t0;
+    o.type=type;o.frequency.setValueAtTime(f,t);
+    if(to)o.frequency.exponentialRampToValueAtTime(to,t+dur);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.005);
+    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g).connect(c.destination);o.start(t);o.stop(t+dur+.02);
+  }
+  function noise(t0,dur,vol=.25,hp=1200){
+    const c=ac();if(!c)return;
+    const n=Math.floor(c.sampleRate*dur),b=c.createBuffer(1,n,c.sampleRate),d=b.getChannelData(0);
+    for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,3);
+    const s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain(),t=c.currentTime+t0;
+    s.buffer=b;f.type='highpass';f.frequency.value=hp;g.gain.value=vol;
+    s.connect(f).connect(g).connect(c.destination);s.start(t);
+  }
+  const fx={
+    roll(){for(let i=0;i<7;i++){noise(i*.045+Math.random()*.02,.05,.22,900+Math.random()*1500);tone(500+Math.random()*500,i*.045,.03,{type:'square',vol:.03})}},
+    pick(){tone(880,0,.06,{type:'triangle',vol:.15})},
+    check(){noise(0,.08,.18,2500);tone(660,0,.08,{type:'triangle',vol:.12});tone(990,.07,.1,{type:'triangle',vol:.12})},
+    good(){tone(784,0,.1,{type:'triangle'});tone(1175,.08,.16,{type:'triangle'})},
+    bad(){tone(330,0,.18,{type:'sawtooth',vol:.07,to:220})},
+    end(){[523,659,784,1047].forEach((f,i)=>tone(f,i*.12,.3,{type:'triangle',vol:.16}))},
+    best(){[523,659,784,1047,1319,1568].forEach((f,i)=>tone(f,i*.09,.35,{type:'triangle',vol:.16}))},
+    submit(){tone(988,0,.08,{type:'sine'});tone(1319,.08,.25,{type:'sine'})},
+  };
+  return {
+    play(name){if(on&&fx[name])try{fx[name]()}catch(e){}},
+    get on(){return on},
+    toggle(){on=!on;try{localStorage.setItem('pairdice_sound',on?'on':'off')}catch(e){}if(on){ac();fx.pick()}return on}
+  };
+})();
+function syncSnd(){const b=$('snd');b.textContent=SFX.on?'🔊':'🔇';b.setAttribute('aria-pressed',String(SFX.on))}
+$('snd').onclick=()=>{SFX.toggle();syncSnd()};
+syncSnd();
+
 function roll(){
+  SFX.play('roll');
   S.dice=S.dice.map(rand);S.phase='choose';S.discard=null;S.turn++;S.lastNew=[];
   render(true);
 }
 function reroll(){
-  if(S.rerolls<=0)return;S.rerolls--;S.dice=S.dice.map(rand);S.discard=null;render(true);
+  if(S.rerolls<=0)return;SFX.play('roll');S.rerolls--;S.dice=S.dice.map(rand);S.discard=null;render(true);
 }
 function commit(p){
   const free=isFreeDiscard();
   const dv=S.dice[S.discard];
+  const before=score(S.marks);
   S.marks[p[0]]++;S.marks[p[1]]++;S.lastNew=p.slice();
   if(!free){
     let e=S.trash.find(t=>t.n===dv);
@@ -300,14 +356,16 @@ function commit(p){
   }
   S.phase='roll';S.discard=null;
   hl([]);render();save();
-  if(S.trash.some(t=>t.c>=8))end();
+  if(S.trash.some(t=>t.c>=8)){end();return}
+  const d=score(S.marks)-before;
+  SFX.play(d>0?'good':d<0?'bad':'check');
 }
 function end(){
   S.over=true;const f=score(S.marks);
   let best=null;try{best=parseInt(localStorage.getItem('pairdice_best'))}catch(e){}
   let note='';
-  if(best===null||isNaN(best)||f>best){note='ベスト更新！';try{localStorage.setItem('pairdice_best',f)}catch(e){}}
-  else note=`ベストは ${best} 点`;
+  if(best===null||isNaN(best)||f>best){note='ベスト更新！';SFX.play('best');try{localStorage.setItem('pairdice_best',f)}catch(e){}}
+  else{note=`ベストは ${best} 点`;SFX.play('end')}
   $('final').textContent=f;$('finalNote').textContent=`${S.turn}手番 ・ ${note}`;
   $('over').hidden=false;prepSubmit();showBest();save();
 }
@@ -367,7 +425,7 @@ $('submitForm').addEventListener('submit',async e=>{
   try{
     const j=await api({action:'submit',name,score:score(S.marks),turns:S.turn});
     S.submitted=true;save();
-    sm.textContent=j.rank?`登録しました。現在 ${j.rank} 位です。`:'登録しました。';
+    SFX.play('submit');sm.textContent=j.rank?`登録しました。現在 ${j.rank} 位です。`:'登録しました。';
     loadRanking();
   }catch(err){sm.textContent='登録できませんでした。通信状況を確認してもう一度押してください。';$('send').disabled=false}
 });
